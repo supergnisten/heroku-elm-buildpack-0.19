@@ -1,3 +1,8 @@
+# this is a clone of the following repository: 
+https://github.com/srid/heroku-buildpack-elm.git
+It a try to get it up to Elm 0.19!
+
+
 # Heroku buildpack for Elm apps
 
 Check out the example app [elm-todomvc](https://github.com/srid/elm-todomvc). In brief:
