@@ -30,9 +30,7 @@ install_binaries() {
 }
 
 elm_compile(){
-   ELM_COMPILE=$(get_app_json_env "ELM_COMPILE")
-echo "-----> Compiling with ${ELM_COMPILE}"
-${ELM_COMPILE} | indent
+ cd $(BUILD_DIR) elm make src/Main.elm --output=main.js
 }
 
 
