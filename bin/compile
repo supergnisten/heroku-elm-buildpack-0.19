@@ -1,0 +1,84 @@
+#!/bin/bash
+
+set -eo pipefail
+
+indent() {
+  sed -u 's/^/       /'
+}
+
+mkdir -p "$1" "$2"
+build=$(cd "$1/" && pwd)
+cache=$(cd "$2/" && pwd)
+buildpack=$(cd "$(dirname $0)/.." && pwd)
+
+
+# Accept user-defined environment
+if test -f ${build}/.buildpack.env; then
+    source ${build}/.buildpack.env
+fi
+
+ELM_VERSION=${ELM_VERSION:-0.18.0}
+CACHE_BUILD_OBJECTS=${CACHE_BUILD_OBJECTS:-true}
+S3_URL=https://s3.amazonaws.com/heroku-buildpack-elm/assets
+
+download() {
+           url=$1
+           basename=$2
+           if test -f ${basename}
+           then
+            true
+           else
+            wget -nv -c ${url}/${basename}
+           fi
+}
+
+error() {
+    msg=$1
+    echo "    !! ${msg}"
+    exit 1
+}
+
+mkcd()
+{
+    mkdir -p $1 && cd $1
+}
+
+echo "export PATH=${cache}/bin/elm-${ELM_VERSION}:$PATH" >> $buildpack/export
+PATH=${cache}/bin/elm-${ELM_VERSION}:$PATH
+
+mkcd ${cache}/bin/elm-${ELM_VERSION}
+echo "-----> Retrieving ${ELM_VERSION}"
+download ${S3_URL}/elm/${ELM_VERSION} elm
+download ${S3_URL}/elm/${ELM_VERSION} elm-package
+download ${S3_URL}/elm/${ELM_VERSION} elm-make
+
+chmod -R a+x ${cache}/bin
+
+# Restore elm package cache
+if [ $CACHE_BUILD_OBJECTS = true ]; then
+    if test -d ${cache}/elm-stuff; then
+        echo "-----> Restoring Elm cache"
+        cp -r ${cache}/elm-stuff ${build}/elm-stuff
+    fi
+fi
+
+cd ${build}
+echo "-----> Fetching dependencies"
+elm package install --yes | indent
+
+get_app_json_env() {
+    name=$1
+    if ! test -f ${build}/app.json; then
+        error "app.json missing."
+    fi
+    python -c "import json; j=json.load(open('app.json')); print j['env']['${name}']"
+}
+
+ELM_COMPILE=$(get_app_json_env "ELM_COMPILE")
+echo "-----> Compiling with ${ELM_COMPILE}"
+${ELM_COMPILE} | indent
+
+if [ $CACHE_BUILD_OBJECTS = true ]; then
+    # Copy package and compile artifacts back to cache
+    cp -r ${build}/elm-stuff ${cache}/
+fi
