@@ -30,7 +30,7 @@ install_binaries() {
 }
 
 elm_compile(){
- cd $(BUILD_DIR) elm make src/Main.elm --output=main.js
+ cd "$BUILD_DIR" elm make src/Main.elm --output=main.js
 }
 
 
